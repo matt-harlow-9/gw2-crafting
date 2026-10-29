@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GW2 Crafting Profit Finder</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23d9a03a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="coin" aria-hidden="true">g</span><h1>GW2 Crafting Profit Finder</h1><span id="mockBadge" class="tag" hidden>mock data</span></div>
+  <div class="top-actions">
+    <span id="updated" class="muted small"></span>
+    <button id="refresh" class="btn" type="button">Refresh prices</button>
+    <button id="theme" class="btn icon" type="button" aria-label="Toggle light or dark theme" title="Toggle theme">Theme</button>
+  </div>
+</header>
+
+<main>
+  <section class="panel" aria-label="Filters">
+    <div class="grid">
+      <div class="field">
+        <label id="lblPricing">Ingredient pricing</label>
+        <div class="seg" role="group" aria-labelledby="lblPricing">
+          <button id="pBuy" type="button" aria-pressed="true" title="Place buy orders: uses the highest buy order price">Buy order</button>
+          <button id="pInstant" type="button" aria-pressed="false" title="Buy instantly: uses the lowest sell listing">Instant buy</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="search">Search item</label>
+        <input id="search" type="search" placeholder="e.g. sword" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="discipline">Discipline</label>
+        <select id="discipline"><option value="">All disciplines</option></select>
+      </div>
+      <div class="field">
+        <label for="minVol" title="Volume is the smaller of buy-order and sell-listing quantity">Minimum volume</label>
+        <input id="minVol" type="number" min="0" step="10" value="25" inputmode="numeric">
+      </div>
+    </div>
+    <div class="checks">
+      <label><input id="hideUnlock" type="checkbox"> Hide recipes that need unlocking</label>
+      <label><input id="onlyProfit" type="checkbox"> Only profitable</label>
+    </div>
+    <details>
+      <summary>Use my owned materials (optional)</summary>
+      <div class="acct-body">
+        <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="GW2 API key (needs account, inventories)" aria-label="GW2 API key">
+        <button id="loadOwned" class="btn" type="button">Load</button>
+        <p class="muted small">The key stays in this page's memory only. It is never saved, and it is cleared from the field after loading.</p>
+        <p id="ownedStatus" class="small" role="status"></p>
+      </div>
+    </details>
+  </section>
+
+  <div class="summary">
+    <span id="count">Loading…</span>
+    <span id="excluded" class="muted small" title="Recipes with Currency or Guild Upgrade ingredients, or untradable ingredients that cannot be crafted"></span>
+  </div>
+
+  <div class="table" id="table">
+    <div class="thead" role="row" id="thead"></div>
+    <div class="scroller" id="scroller" tabindex="0" aria-label="Recipes">
+      <div class="spacer" id="spacer"><div class="rows" id="rows"></div></div>
+      <div class="empty" id="empty" hidden>No recipes match these filters.</div>
+    </div>
+  </div>
+  <p class="muted small foot">Profit uses 15% Trading Post fees (5% listing, 10% sale). Volume is the smaller of the buy-order and sell-listing quantities currently on the Trading Post, not how many sell per day, so a high-profit item with low volume may sell slowly. Prices come from the public GW2 API. This is crafting maths, not financial advice, and it is not affiliated with ArenaNet. Guild Wars 2 is a trademark of ArenaNet, LLC.</p>
+</main>
+
+<div class="loader" id="loader" role="dialog" aria-modal="true" aria-labelledby="loadTitle">
+  <div class="card">
+    <h2 id="loadTitle">Loading game data</h2>
+    <p class="muted small" id="loadNote">The first load downloads recipes and items, then it is cached for days.</p>
+    <div class="step" data-stage="recipes"><div class="lab"><span>Recipes</span><span>0%</span></div><div class="bar"><i></i></div></div>
+    <div class="step" data-stage="items"><div class="lab"><span>Items</span><span>0%</span></div><div class="bar"><i></i></div></div>
+    <div class="step" data-stage="prices"><div class="lab"><span>Prices</span><span>0%</span></div><div class="bar"><i></i></div></div>
+    <div class="err" id="loadErr" hidden></div>
+    <button class="btn primary" id="retry" type="button" hidden>Retry</button>
+  </div>
+</div>
+
+<dialog id="detail" aria-labelledby="dTitle">
+  <div class="dlg-head"><h2 id="dTitle"></h2><button id="dClose" class="btn icon" type="button" aria-label="Close">Close</button></div>
+  <div id="dBody"></div>
+</dialog>
+
+<script type="module" src="src/app.js"></script>
+</body>
+</html>
