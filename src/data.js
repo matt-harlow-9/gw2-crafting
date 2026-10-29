@@ -6,6 +6,8 @@ const CHUNK = 200;
 const DAY = 24 * 60 * 60 * 1000;
 export const STATIC_TTL_MS = 7 * DAY;
 export const PRICE_TTL_MS = 5 * 60 * 1000;
+export const VELOCITY_TTL_MS = 30 * 60 * 1000;
+const VELOCITY_URL = 'https://api.datawars2.ie/gw2/v1/items/json?fields=id,1d_sell_sold,7d_sell_sold';
 const MIN_INTERVAL_MS = 110;   // ~545 requests/minute, under the 600/min limit
 const CONCURRENCY = 4;
 
@@ -151,6 +153,7 @@ function itemIdsOf(recipes) {
 const KEY_RECIPES = 'recipes:v1';
 const KEY_ITEMS = 'items:v1';
 const KEY_PRICES = 'prices:v1';
+const KEY_VELOCITY = 'velocity:v1';
 
 async function cget(opts, key) {
   try { return await (opts.cache?.cacheGet || cacheGet)(key); } catch { return undefined; }
@@ -247,4 +250,23 @@ export async function loadOwnedMaterials(apiKey, opts = {}) {
     for (const slot of body) if (slot) add(slot.id, slot.count);
   }
   return owned;
+}
+
+/** Estimated units sold per item (Datawars2, sell side). Never throws: any failure gives an empty Map. */
+export async function loadSalesVelocity(opts = {}) {
+  try {
+    let rows = await cget(opts, KEY_VELOCITY);
+    if (!rows) {
+      const res = await getFetch(opts)(VELOCITY_URL, { signal: opts.signal });
+      if (!res.ok) return new Map();
+      const body = await res.json();
+      if (!Array.isArray(body)) return new Map();
+      rows = body.filter((x) => x && Number.isFinite(x.id))
+        .map((x) => [x.id, { sold1d: +x['1d_sell_sold'] || 0, sold7d: +x['7d_sell_sold'] || 0 }]);
+      if (rows.length) await cset(opts, KEY_VELOCITY, rows, VELOCITY_TTL_MS);
+    }
+    return new Map(rows);
+  } catch {
+    return new Map();
+  }
 }

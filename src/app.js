@@ -1,4 +1,4 @@
-import { loadGameData, refreshPrices, loadOwnedMaterials } from './data.js';
+import { loadGameData, refreshPrices, loadOwnedMaterials, loadSalesVelocity } from './data.js';
 import { computeRowsWithExclusions, getIngredientTree } from './pricing.js';
 import { mockGameData } from './mock.js';
 
@@ -14,6 +14,8 @@ const state = {
   onlyProfit: false,
   discipline: '',
   minVol: 25,
+  minSold: 10,
+  velocity: null,   // Map once Datawars2 data arrives; empty on failure
   search: '',
   sort: { key: 'profit', dir: 'desc' },
   rows: [],      // all computed rows
@@ -56,6 +58,7 @@ const COLS = [
   { key: 'profit', label: 'Profit', cls: 'num', get: (r) => r.profit },
   { key: 'margin', label: 'Margin', cls: 'num', get: (r) => r.margin },
   { key: 'volume', label: 'Volume', cls: 'num hide-sm', get: volume },
+  { key: 'sold', label: 'Sold/day', cls: 'num hide-sm', get: (r) => r.soldPerDay ?? -1 },
 ];
 
 function renderHead() {
@@ -76,7 +79,7 @@ $('thead').addEventListener('click', (e) => {
 
 // ---------- compute / filter / sort ----------
 function options() {
-  return { ingredientPricing: state.pricing, hideUnlockRequired: state.hideUnlock, owned: state.owned || undefined };
+  return { ingredientPricing: state.pricing, hideUnlockRequired: state.hideUnlock, owned: state.owned || undefined, velocity: state.velocity || undefined };
 }
 
 function recompute() {
@@ -97,6 +100,7 @@ function applyView() {
   let v = state.rows.filter((r) =>
     (!state.discipline || r.disciplines.includes(state.discipline)) &&
     volume(r) >= state.minVol &&
+    (r.soldPerDay == null || r.soldPerDay >= state.minSold) &&
     (!state.onlyProfit || r.profit > 0) &&
     (!q || r.name.toLowerCase().includes(q)));
   const col = COLS.find((c) => c.key === state.sort.key);
@@ -105,6 +109,7 @@ function applyView() {
   v.sort((a, b) => (a[0] < b[0] ? -m : a[0] > b[0] ? m : b[1].profit - a[1].profit));
   state.view = v.map((x) => x[1]);
   $('count').textContent = `${nf.format(state.view.length)} of ${nf.format(state.rows.length)} recipes`;
+  $('velNote').hidden = !state.game || state.velocity === null || state.velocity.size > 0;
   $('empty').hidden = state.view.length > 0 || !state.game;
   $('scroller').scrollTop = 0;
   layout();
@@ -138,6 +143,7 @@ function rowHtml(r, i) {
     <div class="num ${r.profit >= 0 ? 'pos' : 'neg'}">${coin(r.profit, { signed: true })}</div>
     <div class="num ${r.margin >= 0 ? 'pos' : 'neg'}">${pct(r.margin)}</div>
     <div class="num hide-sm">${nf.format(volume(r))}<span class="m">${nf.format(r.buyQuantity)} buy / ${nf.format(r.sellQuantity)} sell</span></div>
+    <div class="num hide-sm">${r.soldPerDay == null ? 'n/a' : nf.format(r.soldPerDay)}</div>
   </div>`;
 }
 let raf = 0;
@@ -173,6 +179,7 @@ function openDetail(r) {
     <div><b>Profit</b><span class="${r.profit >= 0 ? 'pos' : 'neg'}">${coin(r.profit, { signed: true })}</span></div>
     <div><b>Margin</b>${pct(r.margin)}</div>
     <div><b>Demand / supply</b>${nf.format(r.buyQuantity)} / ${nf.format(r.sellQuantity)}</div>
+    <div><b>Sold per day</b>${r.soldPerDay == null ? 'n/a' : nf.format(r.soldPerDay)}</div>
     <div><b>Disciplines</b>${esc(r.disciplines.join(', '))}</div>
     <div><b>Min rating</b>${r.minRating}</div></div>${tree}`;
   const d = $('detail');
@@ -193,6 +200,7 @@ $('pInstant').onclick = () => setPricing('instantBuy');
 $('hideUnlock').onchange = (e) => { state.hideUnlock = e.target.checked; recompute(); };
 $('onlyProfit').onchange = (e) => { state.onlyProfit = e.target.checked; applyView(); };
 $('discipline').onchange = (e) => { state.discipline = e.target.value; applyView(); };
+$('minSold').oninput = (e) => { state.minSold = Math.max(0, +e.target.value || 0); applyView(); };
 $('minVol').oninput = (e) => { state.minVol = Math.max(0, +e.target.value || 0); applyView(); };
 let st = 0;
 $('search').oninput = (e) => { clearTimeout(st); st = setTimeout(() => { state.search = e.target.value; applyView(); }, 120); };
@@ -261,6 +269,9 @@ async function init() {
     }
     stamp();
     $('loader').hidden = true;
+    recompute();
+    // Background: sales velocity must never block or break the first render.
+    state.velocity = USE_MOCK ? new Map() : await loadSalesVelocity();
     recompute();
   } catch (e) {
     $('loadErr').textContent = `Could not load game data: ${e.message}`;

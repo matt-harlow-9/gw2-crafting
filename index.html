@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GW2 Crafting Profit Finder</title>
+<title>GW2 Crafting Profit Finder (unofficial fansite)</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23d9a03a'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 <script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
@@ -40,6 +40,10 @@
         <label for="minVol" title="Volume is the smaller of buy-order and sell-listing quantity">Minimum volume</label>
         <input id="minVol" type="number" min="0" step="10" value="25" inputmode="numeric">
       </div>
+      <div class="field">
+        <label for="minSold" title="Estimated units sold per day (7-day average). Applies only when sales data is available">Min sold per day</label>
+        <input id="minSold" type="number" min="0" step="10" value="10" inputmode="numeric">
+      </div>
     </div>
     <div class="checks">
       <label><input id="hideUnlock" type="checkbox"> Hide recipes that need unlocking</label>
@@ -58,6 +62,7 @@
 
   <div class="summary">
     <span id="count">Loading…</span>
+    <span id="velNote" class="muted small" hidden>Sales data unavailable; showing order-book volume only</span>
     <span id="excluded" class="muted small" title="Recipes with Currency or Guild Upgrade ingredients, or untradable ingredients that cannot be crafted"></span>
   </div>
 
@@ -68,7 +73,8 @@
       <div class="empty" id="empty" hidden>No recipes match these filters.</div>
     </div>
   </div>
-  <p class="muted small foot">Profit uses 15% Trading Post fees (5% listing, 10% sale). Volume is the smaller of the buy-order and sell-listing quantities currently on the Trading Post, not how many sell per day, so a high-profit item with low volume may sell slowly. Prices come from the public GW2 API. This is crafting maths, not financial advice, and it is not affiliated with ArenaNet. Guild Wars 2 is a trademark of ArenaNet, LLC.</p>
+  <p class="muted small foot">Profit uses 15% Trading Post fees (5% listing, 10% sale). Volume is the smaller of the buy-order and sell-listing quantities currently on the Trading Post. Sold/day is an estimate of recent sales, so a high-profit item with low sales may sell slowly. Prices come from the public GW2 API. Sales data: <a href="https://datawars2.ie" rel="noopener">Datawars2</a>. This is an unofficial fansite, not affiliated with or endorsed by ArenaNet or NCSOFT. It is crafting maths, not financial advice.</p>
+  <p class="muted small foot">Guild Wars Games © ArenaNet LLC. All rights reserved. NCSOFT, ArenaNet, Guild Wars, Guild Wars 2, GW2, Heart of Thorns, Path of Fire, End of Dragons, Secrets of the Obscure, Janthir Wilds, Visions of Eternity, and all associated logos, designs, and composite marks are trademarks or registered trademarks of NCSOFT Corporation. All other trademarks are the property of their respective owners.</p>
 </main>
 
 <div class="loader" id="loader" role="dialog" aria-modal="true" aria-labelledby="loadTitle">

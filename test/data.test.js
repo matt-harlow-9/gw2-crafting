@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadGameData, refreshPrices, loadOwnedMaterials, mapRecipe } from '../src/data.js';
+import { loadGameData, refreshPrices, loadOwnedMaterials, loadSalesVelocity, mapRecipe } from '../src/data.js';
 import { cacheGet, cacheSet, _setBackend } from '../src/cache.js';
 
 const json = (body, status = 200) => ({
@@ -231,4 +231,31 @@ test('live smoke check against the real API (small sample)', { skip: !process.en
   console.log(JSON.stringify(r), JSON.stringify(it), JSON.stringify([...gd.prices][0]));
   const p = [...gd.prices.values()][0];
   if (p) for (const k of ['buyPrice', 'sellPrice', 'buyQuantity', 'sellQuantity']) assert.equal(typeof p[k], 'number');
+});
+
+test('loadSalesVelocity maps sell-side fields and caches', async () => {
+  const body = [{ id: 5, '1d_sell_sold': 10, '7d_sell_sold': 70, '1d_buy_sold': 99 }, { id: 6, '1d_sell_sold': 0, '7d_sell_sold': 0 }];
+  let calls = 0;
+  const fetchImpl = async (url) => { calls++; assert.match(url, /datawars2/); return json(body); };
+  const cache = memCache();
+  const m = await loadSalesVelocity({ fetchImpl, cache });
+  assert.deepEqual(m.get(5), { sold1d: 10, sold7d: 70 });
+  assert.deepEqual(m.get(6), { sold1d: 0, sold7d: 0 });
+  const again = await loadSalesVelocity({ fetchImpl: async () => { throw new Error('no'); }, cache });
+  assert.equal(calls, 1);
+  assert.equal(again.size, 2);
+});
+
+test('loadSalesVelocity returns an empty Map on any failure', async () => {
+  const cache = memCache();
+  for (const fetchImpl of [
+    async () => json({}, 500),
+    async () => { throw new Error('offline'); },
+    async () => ({ ok: true, status: 200, json: async () => { throw new SyntaxError('bad json'); } }),
+    async () => json({ not: 'an array' }),
+  ]) {
+    const m = await loadSalesVelocity({ fetchImpl, cache });
+    assert.ok(m instanceof Map);
+    assert.equal(m.size, 0);
+  }
 });

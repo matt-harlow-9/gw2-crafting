@@ -142,6 +142,7 @@ const UNRESOLVED = Object.freeze({
 export function computeRowsWithExclusions(gameData, options = {}) {
   const eng = createEngine(gameData, options);
   const hideLocked = !!options.hideUnlockRequired;
+  const vel = options.velocity;
   const rows = [];
   let excluded = 0;
   for (const r of gameData.recipes) {
@@ -173,6 +174,7 @@ export function computeRowsWithExclusions(gameData, options = {}) {
       buyQuantity: price.buyQuantity || 0,
       sellQuantity: price.sellQuantity || 0,
       usesOwned: c.usesOwned,
+      soldPerDay: vel?.size ? Math.round((vel.get(r.outputItemId)?.sold7d || 0) / 7) : null,
     });
   }
   return { rows, excluded };

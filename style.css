@@ -51,7 +51,7 @@ details summary{cursor:pointer;font-weight:600}
 .summary .muted{font-weight:400}
 
 .table{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
-.thead,.row{display:grid;grid-template-columns:minmax(0,3.2fr) minmax(0,1.5fr) repeat(5,minmax(0,1.1fr));align-items:center;column-gap:10px;padding:0 14px}
+.thead,.row{display:grid;grid-template-columns:minmax(0,3.2fr) minmax(0,1.5fr) repeat(6,minmax(0,1.1fr));align-items:center;column-gap:10px;padding:0 14px}
 .thead{background:var(--panel2);border-bottom:1px solid var(--line);height:40px}
 .thead button{background:none;border:0;cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:8px 0;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .thead button.num{text-align:right}
@@ -96,7 +96,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .tag.craft{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent)}
 .tag.own{background:color-mix(in srgb,var(--pos) 20%,transparent);color:var(--pos)}
 
-@media (max-width:1000px){.hide-md{display:none!important}.thead,.row{grid-template-columns:minmax(0,3fr) repeat(4,minmax(0,1.1fr))}}
+@media (max-width:1000px){.hide-md{display:none!important}.thead,.row{grid-template-columns:minmax(0,3fr) repeat(5,minmax(0,1.1fr))}}
 @media (max-width:720px){
   :root{--row-h:62px}
   .hide-sm{display:none!important}

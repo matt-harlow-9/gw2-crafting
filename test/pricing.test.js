@@ -152,3 +152,10 @@ test('performance on a large synthetic dataset', () => {
   assert.equal(rows.length, 13999); // recipe 1 is self-referential and unresolvable
   assert.ok(Date.now() - t < 5000);
 });
+
+test('computeRows soldPerDay: present, absent, and no velocity', () => {
+  const d = gd([R(1, 10, [[20, 1]])], { 10: P(0, 1000), 20: P(100, 150) });
+  assert.equal(computeRows(d, opt)[0].soldPerDay, null);
+  assert.equal(computeRows(d, { ...opt, velocity: new Map([[10, { sold1d: 5, sold7d: 700 }]]) })[0].soldPerDay, 100);
+  assert.equal(computeRows(d, { ...opt, velocity: new Map([[99, { sold1d: 1, sold7d: 7 }]]) })[0].soldPerDay, 0);
+});

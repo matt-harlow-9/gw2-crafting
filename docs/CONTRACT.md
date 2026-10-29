@@ -73,6 +73,12 @@ browser-only API (IndexedDB, localStorage, fetch) must be reachable via a parame
 guarded global so `node --test` can run the tests with an injected `fetch`. Accept `fetchImpl`
 as an optional field in the options of the three functions above.
 
+`loadSalesVelocity({ signal?, fetchImpl?, cache? }) -> Promise<Map<number, { sold1d, sold7d }>>`
+fetches estimated sell-side sales from the Datawars2 bulk endpoint (cached 30 minutes). It never
+throws: any network, HTTP or shape problem yields an empty Map (`size === 0` means unavailable).
+`computeRows` accepts an optional `options.velocity` (that Map) and adds `Row.soldPerDay`
+(`sold7d / 7`, rounded; `0` if the item is absent from a non-empty Map; `null` if no data).
+
 ## Pricing core: `src/pricing.js`
 
 Pure functions, no I/O, no DOM.
