@@ -153,10 +153,10 @@ test('429 is retried; abort signal stops loading', async () => {
 test('loadOwnedMaterials sums materials, bank and shared inventory, skipping null slots', async () => {
   const seen = [];
   const api = async (url, init) => {
-    seen.push({ url, auth: init?.headers?.Authorization });
-    if (url.endsWith('/account/materials')) return json([{ id: 1, category: 5, count: 10 }, { id: 2, count: 0 }]);
-    if (url.endsWith('/account/bank')) return json([null, { id: 1, count: 5 }, null, { id: 3, count: 1 }]);
-    if (url.endsWith('/account/inventory')) return json([{ id: 1, count: 2 }, null]);
+    seen.push({ url, init });
+    if (new URL(url).pathname.endsWith('/account/materials')) return json([{ id: 1, category: 5, count: 10 }, { id: 2, count: 0 }]);
+    if (new URL(url).pathname.endsWith('/account/bank')) return json([null, { id: 1, count: 5 }, null, { id: 3, count: 1 }]);
+    if (new URL(url).pathname.endsWith('/account/inventory')) return json([{ id: 1, count: 2 }, null]);
     return json({}, 404);
   };
   const owned = await loadOwnedMaterials('KEY-123', { fetchImpl: api, ...fast });
@@ -164,21 +164,35 @@ test('loadOwnedMaterials sums materials, bank and shared inventory, skipping nul
   assert.equal(owned.get(3), 1);
   assert.ok(!owned.has(2));
   assert.equal(seen.length, 3);
-  assert.ok(seen.every((s) => s.auth === 'Bearer KEY-123' && !s.url.includes('KEY-123')));
+  assert.ok(seen.every((s) => new URL(s.url).searchParams.get('access_token') === 'KEY-123'));
+  // no custom headers at all => simple request => no CORS preflight
+  assert.ok(seen.every((s) => s.init.headers === undefined && !('Authorization' in s.init)));
 });
 
-test('loadOwnedMaterials error names the endpoint and never leaks the key', async () => {
-  const api = async (url) => url.endsWith('/account/bank')
-    ? json({ text: 'requires scope inventories KEY-123' }, 403)
-    : json([]);
-  await assert.rejects(loadOwnedMaterials('KEY-123', { fetchImpl: api, ...fast }), (e) => {
-    assert.match(e.message, /account\/bank/);
-    assert.match(e.message, /403/);
-    assert.ok(!e.message.includes('KEY-123'));
-    return true;
-  });
-  const bad = async () => json({ text: 'Invalid access token' }, 401);
-  await assert.rejects(loadOwnedMaterials('k', { fetchImpl: bad, ...fast }), /account\/materials.*401/);
+test('access_token is URL-encoded', async () => {
+  let u;
+  const api = async (url) => { u = url; return json([]); };
+  await loadOwnedMaterials('a b&c=d', { fetchImpl: api, ...fast });
+  assert.equal(new URL(u).searchParams.get('access_token'), 'a b&c=d');
+});
+
+test('loadOwnedMaterials errors name the endpoint, are readable, and never leak the key', async () => {
+  const KEY = 'KEY-123';
+  const cases = [
+    [() => json({ text: 'Invalid access token ' + KEY }, 401), /account\/materials: invalid or insufficient key.*401/],
+    [() => json({ text: 'requires scope inventories ' + KEY }, 403), /account\/materials: invalid or insufficient key.*403/],
+    [() => json({ text: 'boom ' + KEY }, 500), /account\/materials failed: 500/],
+    [(url) => { throw new TypeError('Load failed ' + url); }, /account\/materials: network or CORS error/],
+  ];
+  for (const [respond, re] of cases) {
+    await assert.rejects(loadOwnedMaterials(KEY, { fetchImpl: async (url) => respond(url), retries: 0, ...fast }), (e) => {
+      assert.match(e.message, re);
+      assert.ok(!e.message.includes(KEY) && !e.message.includes('access_token'), e.message);
+      return true;
+    });
+  }
+  const api = async (url) => url.includes('/account/bank?') ? json({ text: 'x' }, 403) : json([]);
+  await assert.rejects(loadOwnedMaterials(KEY, { fetchImpl: api, ...fast }), /account\/bank.*403/);
 });
 
 test('cache.js: get/set with TTL (memory fallback and injected backend)', async () => {

@@ -51,15 +51,21 @@ function makeClient(opts) {
       checkAbort(signal);
       await limit();
       checkAbort(signal);
+      // Authenticated calls pass the key as a query parameter and send NO custom
+      // headers: an Authorization header triggers a CORS preflight the API rejects.
+      // The URL therefore contains the key and must never reach an error message.
       const init = { signal };
-      if (key) init.headers = { Authorization: 'Bearer ' + key };
+      const url = BASE + path + (key ? (path.includes('?') ? '&' : '?') + 'access_token=' + encodeURIComponent(key) : '');
+      const name = label || path;
+      const scrub = (s) => (key ? String(s).split(key).join('***').split(encodeURIComponent(key)).join('***') : String(s));
       let res;
       try {
-        res = await f(BASE + path, init);
+        res = await f(url, init);
       } catch (err) {
         if (err?.name === 'AbortError') throw err;
         if (attempt < retries) { await sleep(backoff * (attempt + 1)); continue; }
-        throw new Error(`${label || path} failed: ${err.message}`);
+        if (key) throw new Error(`${name}: network or CORS error`);
+        throw new Error(`${name} failed: ${err.message}`);
       }
       if ((res.status === 429 || res.status >= 500) && attempt < retries) {
         await sleep(backoff * (attempt + 1));
@@ -69,7 +75,10 @@ function makeClient(opts) {
       if (!res.ok && res.status !== 206) {
         let msg = res.statusText || '';
         try { msg = (await res.json()).text || msg; } catch { /* ignore */ }
-        throw new Error(`${label || path} failed: ${res.status}${msg ? ' ' + msg : ''}`);
+        if (key && (res.status === 401 || res.status === 403)) {
+          throw new Error(`${name}: invalid or insufficient key (HTTP ${res.status}; needs the account and inventories scopes)`);
+        }
+        throw new Error(`${name} failed: ${res.status}${msg ? ' ' + scrub(msg) : ''}`);
       }
       return res.json();
     }
